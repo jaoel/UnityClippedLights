@@ -29,6 +29,9 @@ namespace ClippedLights {
 				color = light.color;
 				intensity = light.intensity;
 				cookie = light.cookie;
+				for (int i = 0; i < planes.Length; i++) {
+					planes[i].w = range;
+				}
 			}
 		}
 #endif

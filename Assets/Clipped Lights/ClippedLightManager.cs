@@ -2,6 +2,10 @@
 using System.Collections.Generic;
 using UnityEngine.Rendering;
 
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
 namespace ClippedLights {
 	public class ClippedLightManager {
 		private static ClippedLightManager _instance = null;
@@ -138,6 +142,13 @@ namespace ClippedLights {
 		private void OnPreRenderCallback(Camera currentCamera) {
 			if (!currentCamera)
 				return;
+
+#if UNITY_EDITOR
+			if (!SceneView.lastActiveSceneView.sceneLighting) {
+				commandBuffer.Clear();
+				return;
+			}
+#endif
 
 			if (!cameras.Contains(currentCamera)) {
 				currentCamera.AddCommandBuffer(CameraEvent.AfterLighting, commandBuffer);

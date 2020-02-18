@@ -12,6 +12,9 @@ namespace ClippedLightsEditor {
         static ClippedLight editingLight = null;
 
         private void OnEnable() {
+            if (editing) {
+                Tools.hidden = true;
+            }
             Undo.undoRedoPerformed += OnUndoRedo;
         }
 

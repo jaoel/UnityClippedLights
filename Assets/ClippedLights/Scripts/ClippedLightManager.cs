@@ -235,7 +235,7 @@ namespace ClippedLights {
 				commandBuffer.DisableShaderKeyword("POINT_COOKIE");
 			}
 
-			lightPlaneITMatrix = Matrix4x4.Transpose(Matrix4x4.Inverse(light.transform.localToWorldMatrix));
+			lightPlaneITMatrix = Matrix4x4.Transpose(Matrix4x4.Inverse(Matrix4x4.TRS(light.transform.position, light.transform.rotation, Vector3.one)));
 			int planeCount = 0;
 			for (int i = 0; i < 6; i++) {
 				if (light.planes[i].w < light.range) {

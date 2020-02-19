@@ -4,10 +4,10 @@ using ClippedLights;
 
 namespace ClippedLightsEditor {
     [CustomEditor(typeof(ClippedLight)), CanEditMultipleObjects]
-    class ClippedLightEditor : Editor {
+    partial class ClippedLightEditor : Editor {
         int currentPlaneIndex = -1;
         ClippedLightBoundsHandle clippedLightBoundsHandle = new ClippedLightBoundsHandle();
-        static Vector4[] copiedPlanes = null;
+        ClippedLightTransformChange transformChange = null;
 
         private enum EditingMode {
             None,
@@ -17,9 +17,10 @@ namespace ClippedLightsEditor {
 
         static EditingMode editingMode = EditingMode.None;
         static ClippedLight editingLight = null;
+        static Vector4[] copiedPlanes = null;
 
         private void OnEnable() {
-            if (editingMode != EditingMode.None) {
+            if (editingMode == EditingMode.Bounds) {
                 Tools.hidden = true;
             }
             Undo.undoRedoPerformed += OnUndoRedo;
@@ -106,7 +107,7 @@ namespace ClippedLightsEditor {
 
 
             if (oldEditing != editingMode) {
-                Tools.hidden = editingMode != EditingMode.None;
+                Tools.hidden = editingMode == EditingMode.Bounds;
                 SceneView.RepaintAll();
             }
         }
@@ -123,6 +124,23 @@ namespace ClippedLightsEditor {
 
         private void OnSceneGUI() {
             ClippedLight light = (ClippedLight)target;
+            if (transformChange == null) {
+                transformChange = new ClippedLightTransformChange(light.transform);
+            }
+
+            // TODO: Add support for moving multiple selected lights at the same time
+            if (editingMode == EditingMode.Move) {
+                if (transformChange.Changed()) {
+                    Matrix4x4 worldToLocal = Matrix4x4.Inverse(Matrix4x4.Transpose(Matrix4x4.Inverse(Matrix4x4.TRS(light.transform.position, light.transform.rotation, Vector3.one))));
+                    Matrix4x4 localToWorldOld = Matrix4x4.Transpose(Matrix4x4.Inverse(Matrix4x4.TRS(transformChange.position, transformChange.rotation, Vector3.one)));
+                    for (int i = 0; i < light.planes.Length; i++) {
+                        Vector4 oldWorldPlane = localToWorldOld * light.planes[i];
+                        light.planes[i] = worldToLocal * oldWorldPlane;
+                    }
+                }
+            }
+            transformChange.Update();
+
             Matrix4x4 matrix = Matrix4x4.TRS(light.transform.position, light.transform.rotation, Vector3.one);
             using (new Handles.DrawingScope(matrix)) {
                 for (int i = 0; i < light.planes.Length; i++) {

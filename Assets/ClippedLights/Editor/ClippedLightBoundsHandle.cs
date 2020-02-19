@@ -61,16 +61,16 @@ namespace ClippedLightsEditor {
                             rotateStartDirection = light.planes[i];
                             rotateStartDirection.Normalize();
                             dragStartPlaneDistance = light.planes[i].w;
-                            dragStartPosition = GetHandlePosition(cachedGeometry.faces[i], light.planes[i]);
+                            dragStartPosition = GetHandlePosition(light, cachedGeometry.faces[i], light.planes[i]);
                         }
                         if (Tools.current == Tool.Move) {
                             // Draw slider
                             //Vector3 offset = (Vector3)light.planes[i] * planes[i].w;
                             //Vector3 currentPosition = dragStartPosition - offset;
-                            Vector3 currentPosition = GetHandlePosition(cachedGeometry.faces[i], light.planes[i]);
+                            Vector3 currentPosition = GetHandlePosition(light, cachedGeometry.faces[i], light.planes[i]);
                             FaceEventType faceEvent = DrawFaceSlider(sliderControlID, currentPosition, axis, cameraPos, out float newDistance);
                             if (faceEvent == FaceEventType.Select || faceEvent == FaceEventType.Deselect) {
-                                dragStartPosition = GetHandlePosition(cachedGeometry.faces[i], light.planes[i]);
+                                dragStartPosition = GetHandlePosition(light, cachedGeometry.faces[i], light.planes[i]);
                                 dragStartPlaneDistance = light.planes[i].w;
                             }
                             if (faceEvent == FaceEventType.Move) {
@@ -87,7 +87,7 @@ namespace ClippedLightsEditor {
                                 rotateStartDirection = light.planes[i];
                                 rotateStartDirection.Normalize();
                                 dragStartPlaneDistance = light.planes[i].w;
-                                dragStartPosition = GetHandlePosition(cachedGeometry.faces[i], light.planes[i]);
+                                dragStartPosition = GetHandlePosition(light, cachedGeometry.faces[i], light.planes[i]);
                             }
                             if (Tools.pivotMode == PivotMode.Pivot) {
                                 EditorGUI.BeginChangeCheck();
@@ -114,15 +114,15 @@ namespace ClippedLightsEditor {
                             }
                         }
                     } else {
-                        Vector3 handlePosition = GetHandlePosition(cachedGeometry.faces[i], light.planes[i]);
-                        if (!cachedGeometry.faces[i].included) {
+                        Vector3 handlePosition = GetHandlePosition(light, cachedGeometry.faces[i], light.planes[i]);
+                        if (!cachedGeometry.faces[i].included || light.range < light.planes[i].w) {
                             Handles.DrawDottedLine(cachedGeometry.faces[i].center, handlePosition, 5f);
                         }
                         FaceEventType faceEvent = DrawFaceSelector(SelectedPlaneIndex == i ? (dragStartPosition + axis * light.planes[i].w) : handlePosition, axis, cameraPos);
                         if (faceEvent == FaceEventType.Select) {
                             rotateStartDirection = light.planes[i];
                             dragStartPlaneDistance = light.planes[i].w;
-                            dragStartPosition = GetHandlePosition(cachedGeometry.faces[i], light.planes[i]);
+                            dragStartPosition = GetHandlePosition(light, cachedGeometry.faces[i], light.planes[i]);
                             SelectedPlaneIndex = i;
                         }
                     }
@@ -141,9 +141,17 @@ namespace ClippedLightsEditor {
             return changed;
         }
 
-        private Vector3 GetHandlePosition(BoundingVolumeFace face, Vector4 plane) {
+        private Vector3 GetHandlePosition(ClippedLight light, BoundingVolumeFace face, Vector4 plane) {
             if (face.included) {
-                return face.center;
+                float range = light.range;
+                float planeDistance = plane.w;
+                Vector3 planeNormal = -plane;
+                if (planeDistance > range) {
+                    float delta = planeDistance - range;
+                    return face.center + planeNormal * delta;
+                } else {
+                    return face.center;
+                }
             } else {
                 Vector3 normal = plane;
                 float angle = Vector3.Angle(normal, face.center);

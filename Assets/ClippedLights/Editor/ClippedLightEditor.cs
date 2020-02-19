@@ -8,11 +8,17 @@ namespace ClippedLightsEditor {
         int currentPlaneIndex = -1;
         ClippedLightBoundsHandle clippedLightBoundsHandle = new ClippedLightBoundsHandle();
 
-        static bool editing = false;
+        private enum EditingMode {
+            None,
+            Bounds,
+            Move,
+        }
+
+        static EditingMode editingMode = EditingMode.None;
         static ClippedLight editingLight = null;
 
         private void OnEnable() {
-            if (editing) {
+            if (editingMode != EditingMode.None) {
                 Tools.hidden = true;
             }
             Undo.undoRedoPerformed += OnUndoRedo;
@@ -27,30 +33,40 @@ namespace ClippedLightsEditor {
             clippedLightBoundsHandle.SetDirty();
         }
 
+        private void RadioButton(GUIContent content, ref EditingMode currentMode, EditingMode selectedMode) {
+            bool wasToggled = currentMode == selectedMode;
+            bool isToggled = GUILayout.Toggle(wasToggled, content, "Button", GUILayout.Width(40), GUILayout.Height(25));
+            if (wasToggled != isToggled) {
+                if (isToggled) {
+                    currentMode = selectedMode;
+                } else {
+                    currentMode = EditingMode.None;
+                }
+            }
+        }
+
         public override void OnInspectorGUI() {
             base.OnInspectorGUI();
             ClippedLight light = (ClippedLight)target;
             editingLight = (ClippedLight)targets[0];
 
-            bool oldEditing = editing;
+            EditingMode oldEditing = editingMode;
 
             EditorGUILayout.BeginHorizontal();
 
-            editing = GUILayout.Toggle(editing, new GUIContent(EditorGUIUtility.IconContent("EditCollider").image), "Button", GUILayout.Width(40), GUILayout.Height(25));
-
-            // TODO: Implement Move Tool which moves light but keeps planes the same relative to the light
-            GUILayout.Toggle(false, new GUIContent(EditorGUIUtility.IconContent("MoveTool").image), "Button", GUILayout.Width(40), GUILayout.Height(25));
+            RadioButton(new GUIContent(EditorGUIUtility.IconContent("EditCollider").image), ref editingMode, EditingMode.Bounds);
+            RadioButton(new GUIContent(EditorGUIUtility.IconContent("MoveTool").image), ref editingMode, EditingMode.Move);
 
             EditorGUILayout.EndHorizontal();
 
-            if (editing && currentPlaneIndex != -1) {
+            if (editingMode == EditingMode.Bounds && currentPlaneIndex != -1) {
+                // TODO: Always draw distances for all planes in the light, not only when in edit mode
                 DrawDistanceInspector(light);
-                //DrawRotationInspector(light);
             }
 
 
-            if (oldEditing != editing) {
-                Tools.hidden = editing;
+            if (oldEditing != editingMode) {
+                Tools.hidden = editingMode != EditingMode.None;
                 SceneView.RepaintAll();
             }
         }
@@ -85,13 +101,13 @@ namespace ClippedLightsEditor {
                 for (int i = 0; i < light.planes.Length; i++) {
                     clippedLightBoundsHandle.SetPlane(i, light.planes[i]);
                 }
-                if (clippedLightBoundsHandle.Draw(light, editing && light == editingLight)) {
+                if (clippedLightBoundsHandle.Draw(light, editingMode == EditingMode.Bounds && light == editingLight)) {
                     Undo.RecordObject(light, "Light Plane Change");
                     for(int i = 0; i < light.planes.Length; i++) {
                         light.planes[i] = clippedLightBoundsHandle.GetPlane(i);
                     }
                 }
-                if (editing) {
+                if (editingMode == EditingMode.Bounds) {
                     int previousIndex = currentPlaneIndex;
                     currentPlaneIndex = clippedLightBoundsHandle.SelectedPlaneIndex;
                     if (previousIndex != currentPlaneIndex) {
@@ -100,7 +116,7 @@ namespace ClippedLightsEditor {
                 }
             }
 
-            if (editing && Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Escape) {
+            if (editingMode == EditingMode.Bounds && Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Escape) {
                 if (currentPlaneIndex != -1) {
                     clippedLightBoundsHandle.SelectedPlaneIndex = currentPlaneIndex = -1;
                 }

@@ -53,9 +53,10 @@ namespace ClippedLightsEditor {
             EditingMode oldEditing = editingMode;
 
             EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.PrefixLabel("Edit");
 
-            RadioButton(new GUIContent(EditorGUIUtility.IconContent("EditCollider").image), ref editingMode, EditingMode.Bounds);
-            RadioButton(new GUIContent(EditorGUIUtility.IconContent("MoveTool").image), ref editingMode, EditingMode.Move);
+            RadioButton(new GUIContent(EditorGUIUtility.IconContent("EditCollider").image, "Edit the the light clipping planes"), ref editingMode, EditingMode.Bounds);
+            RadioButton(new GUIContent(EditorGUIUtility.IconContent("MoveTool").image, "Move the light source independently from its bounds"), ref editingMode, EditingMode.Move);
 
             EditorGUILayout.EndHorizontal();
 
@@ -69,6 +70,23 @@ namespace ClippedLightsEditor {
                 Tools.hidden = editingMode != EditingMode.None;
                 SceneView.RepaintAll();
             }
+
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.PrefixLabel(" ");
+            if (GUILayout.Button(new GUIContent("Reset bounds", "Reset the light clipping planes to their default values"))) {
+                Undo.RecordObject(light, "Reset Light Bounds");
+                light.planes = new[] {
+                    new Vector4(1f, 0f, 0f, light.range),
+                    new Vector4(-1f, 0f, 0f, light.range),
+                    new Vector4(0f, 1f, 0f, light.range),
+                    new Vector4(0f, -1f, 0f, light.range),
+                    new Vector4(0f, 0f, 1f, light.range),
+                    new Vector4(0f, 0f, -1f, light.range),
+                };
+                SceneView.RepaintAll();
+            }
+            EditorGUILayout.EndHorizontal();
         }
 
         private void DrawRotationInspector(ClippedLight light) {
@@ -103,7 +121,7 @@ namespace ClippedLightsEditor {
                 }
                 if (clippedLightBoundsHandle.Draw(light, editingMode == EditingMode.Bounds && light == editingLight)) {
                     Undo.RecordObject(light, "Light Plane Change");
-                    for(int i = 0; i < light.planes.Length; i++) {
+                    for (int i = 0; i < light.planes.Length; i++) {
                         light.planes[i] = clippedLightBoundsHandle.GetPlane(i);
                     }
                 }

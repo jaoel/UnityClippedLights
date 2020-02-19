@@ -7,6 +7,7 @@ namespace ClippedLightsEditor {
     class ClippedLightEditor : Editor {
         int currentPlaneIndex = -1;
         ClippedLightBoundsHandle clippedLightBoundsHandle = new ClippedLightBoundsHandle();
+        static Vector4[] copiedPlanes = null;
 
         private enum EditingMode {
             None,
@@ -52,13 +53,51 @@ namespace ClippedLightsEditor {
 
             EditingMode oldEditing = editingMode;
 
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.PrefixLabel("Edit");
+            using (new EditorGUILayout.HorizontalScope()) {
+                EditorGUILayout.PrefixLabel("Edit Mode");
+                RadioButton(new GUIContent(EditorGUIUtility.IconContent("EditCollider").image, "Edit the the light clipping planes"), ref editingMode, EditingMode.Bounds);
+                RadioButton(new GUIContent(EditorGUIUtility.IconContent("MoveTool").image, "Move the light source independently from its bounds"), ref editingMode, EditingMode.Move);
+            }
 
-            RadioButton(new GUIContent(EditorGUIUtility.IconContent("EditCollider").image, "Edit the the light clipping planes"), ref editingMode, EditingMode.Bounds);
-            RadioButton(new GUIContent(EditorGUIUtility.IconContent("MoveTool").image, "Move the light source independently from its bounds"), ref editingMode, EditingMode.Move);
-
-            EditorGUILayout.EndHorizontal();
+            using (new EditorGUILayout.HorizontalScope()) {
+                EditorGUILayout.PrefixLabel("Planes");
+                using (new EditorGUILayout.VerticalScope()) {
+                    using (new EditorGUILayout.HorizontalScope()) {
+                        if (GUILayout.Button(new GUIContent("Reset bounds", "Reset the light clipping planes to their default values"))) {
+                            Undo.RecordObject(light, "Reset Light Bounds");
+                            light.planes = new[] {
+                                new Vector4(1f, 0f, 0f, light.range),
+                                new Vector4(-1f, 0f, 0f, light.range),
+                                new Vector4(0f, 1f, 0f, light.range),
+                                new Vector4(0f, -1f, 0f, light.range),
+                                new Vector4(0f, 0f, 1f, light.range),
+                                new Vector4(0f, 0f, -1f, light.range),
+                            };
+                            SceneView.RepaintAll();
+                        }
+                    }
+                    using (new EditorGUILayout.HorizontalScope()) {
+                        using (new EditorGUI.DisabledGroupScope(targets.Length != 1)) {
+                            if (GUILayout.Button("Copy") && targets.Length == 1) {
+                                copiedPlanes = new Vector4[6];
+                                System.Array.Copy(light.planes, copiedPlanes, 6);
+                            }
+                        }
+                        using (new EditorGUI.DisabledGroupScope(copiedPlanes == null)) {
+                            if (GUILayout.Button("Paste") && copiedPlanes != null) {
+                                for (int i = 0; i < targets.Length; i++) {
+                                    if (targets[i] is ClippedLight targetLight) {
+                                        Undo.RecordObject(targetLight, "Paste Light Planes");
+                                        targetLight.planes = new Vector4[6];
+                                        System.Array.Copy(copiedPlanes, targetLight.planes, 6);
+                                        SceneView.RepaintAll();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
             if (editingMode == EditingMode.Bounds && currentPlaneIndex != -1) {
                 // TODO: Always draw distances for all planes in the light, not only when in edit mode
@@ -68,36 +107,6 @@ namespace ClippedLightsEditor {
 
             if (oldEditing != editingMode) {
                 Tools.hidden = editingMode != EditingMode.None;
-                SceneView.RepaintAll();
-            }
-
-
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.PrefixLabel(" ");
-            if (GUILayout.Button(new GUIContent("Reset bounds", "Reset the light clipping planes to their default values"))) {
-                Undo.RecordObject(light, "Reset Light Bounds");
-                light.planes = new[] {
-                    new Vector4(1f, 0f, 0f, light.range),
-                    new Vector4(-1f, 0f, 0f, light.range),
-                    new Vector4(0f, 1f, 0f, light.range),
-                    new Vector4(0f, -1f, 0f, light.range),
-                    new Vector4(0f, 0f, 1f, light.range),
-                    new Vector4(0f, 0f, -1f, light.range),
-                };
-                SceneView.RepaintAll();
-            }
-            EditorGUILayout.EndHorizontal();
-        }
-
-        private void DrawRotationInspector(ClippedLight light) {
-            Vector3 planeNormal = light.planes[currentPlaneIndex];
-            Quaternion rotation = Quaternion.FromToRotation(Vector3.up, planeNormal);
-            EditorGUI.BeginChangeCheck();
-            rotation.eulerAngles = EditorGUILayout.Vector3Field("Rotation", rotation.eulerAngles);
-            if (EditorGUI.EndChangeCheck()) {
-                Undo.RecordObject(light, "Light Plane Rotation Change");
-                Vector3 euler = rotation * Vector3.up;
-                light.planes[currentPlaneIndex] = new Vector4(euler.x, euler.y, euler.z, light.planes[currentPlaneIndex].w);
                 SceneView.RepaintAll();
             }
         }

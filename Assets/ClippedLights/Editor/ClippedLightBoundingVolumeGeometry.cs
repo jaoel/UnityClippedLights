@@ -12,6 +12,15 @@ namespace ClippedLights {
         public struct PlaneIntersectionPoint {
             public Vector3 point;
             public int[] planeIndices;
+
+            public bool IsPartOfPlane(int planeIndex) {
+                for (int i = 0; i < planeIndices.Length; i++) {
+                    if (planeIndices[i] == planeIndex) {
+                        return true;
+                    }
+                }
+                return false;
+            }
         }
 
         public Vector3[] points = new Vector3[0];
@@ -84,7 +93,7 @@ namespace ClippedLights {
                     Vector4 plane = light.planes[p];
                     Vector4 point = allIntersections[i].point;
                     point.w = 1f;
-                    if (Vector4.Dot(plane, point) < -0.0001f) {
+                    if (Vector4.Dot(plane, point) < 0f && !allIntersections[i].IsPartOfPlane(p)) {
                         visible = false;
                         break;
                     }

@@ -26,7 +26,8 @@ namespace ClippedLightsEditor {
             private Vector3 rotateStartDirection = Vector3.forward;
             private float dragStartPlaneDistance = 0f;
             private Dictionary<ClippedLight, ClippedLightBoundingVolumeGeometry> cachedBoundingVolumes = new Dictionary<ClippedLight, ClippedLightBoundingVolumeGeometry>();
-            private bool dirty = false;
+            private bool shouldResetPosition = false;
+            private bool shouldRecalculateBounds = false;
 
             public int SelectedPlaneIndex { get; set; } = -1;
 
@@ -38,8 +39,12 @@ namespace ClippedLightsEditor {
                 return planes[planeIndex];
             }
 
-            public void SetDirty() {
-                dirty = true;
+            public void ShouldResetPosition() {
+                shouldResetPosition = true;
+            }
+
+            public void ShouldRecalculateBounds() {
+                shouldRecalculateBounds = true;
             }
 
             public bool Draw(ClippedLight light, bool edit) {
@@ -57,8 +62,8 @@ namespace ClippedLightsEditor {
                         Vector3 axis = -light.planes[i];
                         int sliderControlID = GUIUtility.GetControlID(GetHashCode(), FocusType.Passive);
                         if (SelectedPlaneIndex == i) {
-                            if (dirty) {
-                                dirty = false;
+                            if (shouldResetPosition) {
+                                shouldResetPosition = false;
                                 rotateStartDirection = light.planes[i];
                                 rotateStartDirection.Normalize();
                                 dragStartPlaneDistance = light.planes[i].w;
@@ -92,7 +97,7 @@ namespace ClippedLightsEditor {
                                 }
                                 if (Tools.pivotMode == PivotMode.Pivot) {
                                     EditorGUI.BeginChangeCheck();
-                                    Quaternion rotation = Handles.RotationHandle(Quaternion.identity, Vector3.zero);
+                                    Quaternion rotation = WorkaroundRotationHandle(Quaternion.identity, Vector3.zero);
                                     if (EditorGUI.EndChangeCheck()) {
                                         Quaternion finalRotation = Quaternion.SlerpUnclamped(Quaternion.identity, rotation, Event.current.alt ? 0.1f : 1f);
                                         Vector4 newPlane = finalRotation * rotateStartDirection;
@@ -102,7 +107,7 @@ namespace ClippedLightsEditor {
                                     }
                                 } else {
                                     EditorGUI.BeginChangeCheck();
-                                    Quaternion rotation = Handles.RotationHandle(Quaternion.identity, dragStartPosition);
+                                    Quaternion rotation = WorkaroundRotationHandle(Quaternion.identity, dragStartPosition);
                                     if (EditorGUI.EndChangeCheck()) {
                                         Quaternion finalRotation = Quaternion.SlerpUnclamped(Quaternion.identity, rotation, Event.current.alt ? 0.1f : 1f);
                                         Vector3 newPlane = finalRotation * rotateStartDirection;
@@ -116,7 +121,7 @@ namespace ClippedLightsEditor {
                             }
                         } else {
                             Vector3 handlePosition = GetHandlePosition(light, cachedGeometry.faces[i], light.planes[i]);
-                            if (!cachedGeometry.faces[i].included || light.range < light.planes[i].w) {
+                            if (!cachedGeometry.faces[i].included || light.Range < light.planes[i].w) {
                                 Handles.DrawDottedLine(cachedGeometry.faces[i].center, handlePosition, 5f);
                             }
                             FaceEventType faceEvent = DrawFaceSelector(SelectedPlaneIndex == i ? (dragStartPosition + axis * light.planes[i].w) : handlePosition, axis, cameraPos);
@@ -139,12 +144,32 @@ namespace ClippedLightsEditor {
                     }
                 }
 
+                if (changed || shouldRecalculateBounds) {
+                    shouldRecalculateBounds = false;
+                    light.dirty = true;
+                    light.RecalculateLightBounds(cachedGeometry);
+                }
+
                 return changed;
+            }
+
+            private Quaternion WorkaroundRotationHandle(Quaternion rotation, Vector3 position) {
+
+                Matrix4x4 handlesMatrix = Handles.matrix;
+                Quaternion worldRotation = handlesMatrix.rotation * rotation;
+                Vector3 worldPosition = handlesMatrix.MultiplyPoint(position);
+
+                Quaternion result;
+                using (new Handles.DrawingScope(Matrix4x4.identity)) {
+                    result = Handles.RotationHandle(worldRotation, worldPosition);
+                }
+
+                return Quaternion.Inverse(handlesMatrix.rotation) * result;
             }
 
             private Vector3 GetHandlePosition(ClippedLight light, BoundingVolumeFace face, Vector4 plane) {
                 if (face.included) {
-                    float range = light.range;
+                    float range = light.Range;
                     float planeDistance = plane.w;
                     Vector3 planeNormal = -plane;
                     if (planeDistance > range) {

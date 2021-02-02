@@ -40,7 +40,48 @@ namespace ClippedLights {
             if (dirty) {
                 CalculateBoundingVolume(light);
                 System.Array.Copy(light.planes, cachedPlanes, light.planes.Length);
+                light.RecalculateLightBounds(this);
             }
+        }
+
+        public bool TryGetBoundingSphere(ClippedLight light, out Vector3 center, out float radius) {
+            center = Vector3.zero;
+            radius = light.Range;
+
+            if (points.Length == 0) {
+                return false;
+            }
+
+            Vector3 centroid = Vector3.zero;
+            List<Vector3> includedPoints = new List<Vector3>();
+            foreach (var face in faces) {
+                if (face.included) {
+                    foreach (int index in face.pointIndices) {
+                        Vector3 point = points[index];
+                        centroid += point;
+                        includedPoints.Add(point);
+                    }
+                }
+            }
+
+            if (includedPoints.Count < 4) {
+                return false;
+            }
+
+            center = centroid / includedPoints.Count;
+
+            float maxRadius = 0f;
+            foreach (Vector3 point in includedPoints) {
+                maxRadius = Mathf.Max(maxRadius, Vector3.Distance(center, point));
+            }
+
+            if (maxRadius > light.Range) {
+                return false;
+            }
+
+            radius = maxRadius;
+
+            return true;
         }
 
         private bool TryGetPlaneIntersection(Vector4 a, Vector4 b, Vector4 c, out Vector3 point) {
@@ -61,7 +102,7 @@ namespace ClippedLights {
             Vector4[] boundedPlanes = new Vector4[planeCount];
             for (int i = 0; i < planeCount; i++) {
                 Vector4 plane = light.planes[i];
-                plane.w = Mathf.Clamp(plane.w, -light.range, light.range);
+                plane.w = Mathf.Clamp(plane.w, -light.Range, light.Range);
                 boundedPlanes[i] = plane;
             }
 

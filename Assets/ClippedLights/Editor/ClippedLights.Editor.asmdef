@@ -1,0 +1,17 @@
+{
+    "name": "ClippedLights.Editor",
+    "references": [
+        "GUID:591947074d8942d489641a66f9f03d1d"
+    ],
+    "optionalUnityReferences": [],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": []
+}

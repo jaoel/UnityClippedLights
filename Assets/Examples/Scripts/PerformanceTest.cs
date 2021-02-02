@@ -105,9 +105,9 @@ namespace ClippedLights {
 
                 if (useClippedLights) {
                     ClippedLight light = container.gameObject.AddComponent<ClippedLight>();
-                    light.color = color;
-                    light.intensity = intensity;
-                    light.range = range;
+                    light.Color = color;
+                    light.Intensity = intensity;
+                    light.Range = range;
                     light.planes = new[] {
                         new Vector4(1f, 0f, 0f, range),
                         new Vector4(-1f, 0f, 0f, range),
@@ -116,6 +116,7 @@ namespace ClippedLights {
                         new Vector4(0f, 0f, 1f, range),
                         new Vector4(0f, 0f, -1f, range),
                     };
+                    light.RecalculateLightBounds();
                 } else {
                     Light light = container.gameObject.AddComponent<Light>();
                     light.color = color;

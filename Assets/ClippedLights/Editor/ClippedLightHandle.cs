@@ -1,10 +1,13 @@
-﻿using UnityEditor;
+﻿using ClippedLights;
+using UnityEditor;
 using UnityEngine;
 
 namespace ClippedLightsEditor {
     // This is a handle that sort of emulates Unity's built-in light handle sphere
     public class ClippedLightHandle {
-        public static void Draw(Vector3 position, float radius) {
+        public static void Draw(ClippedLight light) {
+            Vector3 position = light.transform.position;
+            float radius = light.Range;
             DrawAxisCircle(position, Vector3.right, radius);
             DrawAxisCircle(position, Vector3.up, radius);
             DrawAxisCircle(position, Vector3.forward, radius);
@@ -13,6 +16,10 @@ namespace ClippedLightsEditor {
                 Handles.DrawWireDisc(position, Camera.current.transform.forward, radius);
             } else {
                 DrawOutlineCircle(position, radius);
+            }
+            using (new HandlesScope()) {
+                Handles.color = new Color(0.5f, 0.5f, 0.5f);
+                DrawOutlineCircle(light.boundingSphereCenter, light.boundingSphereRadius);
             }
         }
 
